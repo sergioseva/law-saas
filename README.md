@@ -84,6 +84,23 @@ All require a firm subdomain + active session.
 
 Roles: `admin` (full access), `abogado` (read+write), `secretario` (read-only). Permission classes live in `apps/api/tenants/permissions.py`.
 
+### Frontend (Phase 3, wired up)
+
+App Router pages:
+
+| Path | Host | Notes |
+|---|---|---|
+| `/` | `app.lvh.me:3000` | Marketing landing with Sign-up CTA. |
+| `/signup` | `app.lvh.me:3000` | Email + firm name + subdomain picker; redirects to `<sub>.lvh.me:3000/login` on success. |
+| `/login` | `<sub>.lvh.me:3000` | Email + password; firm context inferred from host. |
+| `/dashboard` | `<sub>.lvh.me:3000` | Counts (clients, active cases, pending actions) + upcoming-actions list. |
+| `/clientes` | `<sub>.lvh.me:3000` | Paginated list with search (`q`) and `case_status` filter. |
+| `/clientes/nuevo` | `<sub>.lvh.me:3000` | Create form (write role+). |
+| `/clientes/[id]` | `<sub>.lvh.me:3000` | Detail with Actuaciones + Documentos tabs. RBAC-aware buttons. |
+| `/clientes/[id]/editar` | `<sub>.lvh.me:3000` | Edit form (write role+). |
+
+Stack: Next.js 14 App Router, TanStack Query, react-hook-form + zod, Tailwind. Cookie-based session auth with CSRF (frontend reads `csrftoken` and attaches `X-CSRFToken` header).
+
 ### Running tests
 
 ```bash

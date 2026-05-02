@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+
+import { QueryProvider } from "../lib/providers/query-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,8 +12,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
-      <body className="min-h-screen bg-white text-slate-900 antialiased">
-        {children}
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );
