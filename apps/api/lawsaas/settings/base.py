@@ -32,8 +32,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "corsheaders",
-    "allauth",
-    "allauth.account",
     # Local
     "tenants",
     "crm",
@@ -50,7 +48,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     # Local — must run after auth so request.user is available
     "tenants.middleware.TenantMiddleware",
 ]
@@ -103,15 +100,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
+    "tenants.auth_backends.EmailBackend",
 ]
-
-# allauth — email, no usernames
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
 
 # ---------------------------------------------------------------------------
 # Internationalization

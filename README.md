@@ -35,7 +35,8 @@ Prerequisites: Docker + Compose, `pnpm`, `uv` (for managing the Python environme
 ```bash
 # First boot
 cp infra/.env.example infra/.env
-# Edit infra/.env — set MASTER_KEK to a random 32-byte base64 string for local dev.
+# Generate a master key:
+python -c "from cryptography.fernet import Fernet; print('MASTER_KEK=' + Fernet.generate_key().decode())" >> infra/.env
 
 cd infra
 docker compose up -d
@@ -43,22 +44,35 @@ docker compose up -d
 # Apply migrations
 docker compose exec api uv run python manage.py migrate
 
-# Create a superuser (used for the Django admin only, not the SaaS auth flow)
-docker compose exec api uv run python manage.py createsuperuser
-
 # Run the frontend
 cd ../apps/web
 pnpm install
 pnpm dev
 ```
 
-The API is at `http://localhost:8000`, the Next.js dev server at `http://localhost:3000`.
+The API is at `http://localhost:8000`, the Next.js dev server at `http://localhost:3000`. `lvh.me` resolves all subdomains to `127.0.0.1` automatically — use `acme.lvh.me`, `app.lvh.me`, etc., for local subdomain testing.
 
-For local subdomain routing, edit `/etc/hosts`:
+### Auth endpoints (Phase 1, wired up)
+
+| Method | URL | Notes |
+|---|---|---|
+| POST | `/api/auth/signup` | Public on `app.*`; creates `User + Firm + Membership(admin) + DEK` atomically. |
+| POST | `/api/auth/login` | Requires firm subdomain. Verifies user has Membership in that firm. |
+| POST | `/api/auth/logout` | Clears session. |
+| GET  | `/api/auth/me` | Returns current user + role + firm. |
+| GET  | `/api/auth/csrf` | Sets the `csrftoken` cookie for the SPA. |
+| GET  | `/api/schema/` and `/api/docs/` | drf-spectacular OpenAPI schema and Swagger UI. |
+
+Roles: `admin` (full access), `abogado` (read+write), `secretario` (read-only). Permission classes live in `apps/api/tenants/permissions.py`.
+
+### Running tests
+
+```bash
+cd infra
+docker compose exec api uv run pytest
 ```
-127.0.0.1   acme.lvh.me beta.lvh.me app.lvh.me api.lvh.me
-```
-Or use `lvh.me` (resolves all subdomains to 127.0.0.1) directly.
+
+Tests cover: envelope encryption round-trip, tenant middleware (subdomain extraction, firm resolution), signup (atomic creation, reserved/duplicate/format rejection, weak-password rejection, transactional rollback), login (membership-required, bad-password 401, no-firm-host 403), logout, /me, and the four DRF permission classes against three role fixtures.
 
 ## Production deploy
 

@@ -15,16 +15,20 @@ import json
 import os
 
 from cryptography.fernet import Fernet
-from django.conf import settings
 
 
 def _master() -> Fernet:
-    key = settings.MASTER_KEK
+    """
+    Read the master key from the environment at call time.
+
+    We deliberately do *not* read it from `django.conf.settings` — settings is
+    captured at Django startup, which can race with test fixtures that set the
+    env var. Reading os.environ here makes the resolution explicit and lazy.
+    """
+    key = os.environ.get("MASTER_KEK", "")
     if not key:
         raise RuntimeError("MASTER_KEK is not set")
-    if isinstance(key, str):
-        key = key.encode("utf-8")
-    return Fernet(key)
+    return Fernet(key.encode("ascii"))
 
 
 def generate_dek() -> bytes:

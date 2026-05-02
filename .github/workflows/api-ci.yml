@@ -71,7 +71,7 @@ jobs:
           echo "MASTER_KEK=$(uv run --with cryptography python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> $GITHUB_ENV
 
       - name: Sync deps
-        run: uv sync --all-extras
+        run: uv sync --all-groups
 
       - name: Lint (ruff)
         run: uv run ruff check .
@@ -79,8 +79,8 @@ jobs:
       - name: Format check (black)
         run: uv run black --check .
 
-      - name: Typecheck (mypy)
-        run: uv run mypy . || echo "mypy non-blocking until Phase 2"
+      - name: Typecheck (mypy) — non-blocking until Phase 2 fleshes out crm/
+        run: uv run mypy . || true
 
       - name: Run tests
         run: uv run pytest
