@@ -6,6 +6,7 @@ the auth system to find the custom user model. The fields below are the
 minimum to make `AUTH_USER_MODEL = "tenants.User"` work.
 """
 import uuid
+from functools import cached_property
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
@@ -68,6 +69,17 @@ class Firm(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.subdomain})"
+
+    @cached_property
+    def dek(self) -> bytes:
+        """
+        Decrypted per-firm data encryption key. Cached on the instance, which
+        is per-request (TenantMiddleware constructs a fresh Firm per request).
+        Callers pass this into encryption.envelope helpers.
+        """
+        from encryption.envelope import unwrap_dek
+
+        return unwrap_dek(self.wrapped_dek)
 
 
 class Membership(models.Model):
