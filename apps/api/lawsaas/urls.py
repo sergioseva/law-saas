@@ -14,6 +14,5 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/auth/", include("tenants.urls")),
-    # Domain endpoints (filled in during Phase 2)
-    # path("api/", include("crm.urls")),
+    path("api/", include("crm.urls")),
 ]

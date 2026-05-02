@@ -63,6 +63,25 @@ The API is at `http://localhost:8000`, the Next.js dev server at `http://localho
 | GET  | `/api/auth/csrf` | Sets the `csrftoken` cookie for the SPA. |
 | GET  | `/api/schema/` and `/api/docs/` | drf-spectacular OpenAPI schema and Swagger UI. |
 
+### CRM endpoints (Phase 2, wired up)
+
+All require a firm subdomain + active session.
+
+| Method | URL | Notes |
+|---|---|---|
+| GET    | `/api/clients?q=&case_status=&case_type=&city=` | Paginated summary list. `q` searches across name/DNI/phone. |
+| POST   | `/api/clients` | Create. Requires write role. |
+| GET    | `/api/clients/<id>` | Decrypted detail. |
+| PATCH  | `/api/clients/<id>` | Partial update; merges with existing payload. |
+| DELETE | `/api/clients/<id>` | Admin only. |
+| GET    | `/api/actions?client=&completed=` | Paginated summary. |
+| POST   | `/api/actions` | Body must include `client` (id). |
+| POST   | `/api/actions/<id>/complete` | Convenience: mark as completed. |
+| GET/PATCH/DELETE | `/api/actions/<id>` | Standard CRUD. |
+| POST   | `/api/documents` | Metadata-only in Phase 2; bytes go via R2 in Phase 4. |
+| GET    | `/api/documents?client=` | Paginated summary. |
+| GET/DELETE | `/api/documents/<id>` | (PUT/PATCH return 405 — replace by delete + re-upload.) |
+
 Roles: `admin` (full access), `abogado` (read+write), `secretario` (read-only). Permission classes live in `apps/api/tenants/permissions.py`.
 
 ### Running tests
