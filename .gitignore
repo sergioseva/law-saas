@@ -55,3 +55,7 @@ Thumbs.db
 *.pem
 secrets/
 infra/.env.prod
+
+# Celery runtime state
+celerybeat-schedule*
+celerybeat.pid
