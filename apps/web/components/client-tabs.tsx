@@ -403,8 +403,13 @@ function DocumentRow({
     remove.mutate(doc.id);
   }
 
-  const displayName = doc.description || doc.original_name || `Documento #${doc.id}`;
-  const filename = doc.original_name ?? doc.stored_key.split("/").pop() ?? doc.stored_key;
+  // Resolution order: user description → original filename → stored-key tail.
+  // The stored-key tail (e.g. "ab12cd….pdf") is opaque but at least preserves
+  // the file extension, which is more useful than "Documento #5".
+  const filename =
+    doc.original_name ?? doc.stored_key.split("/").pop() ?? `archivo-${doc.id}`;
+  const displayName = doc.description?.trim() || filename;
+  const showSecondaryFilename = Boolean(doc.description?.trim()) && filename !== displayName;
 
   return (
     <li className="flex items-center justify-between px-5 py-3">
@@ -418,10 +423,12 @@ function DocumentRow({
           {displayName}
         </a>
         <div className="truncate text-xs text-slate-500">
-          {doc.description ? (
-            <span className="text-slate-700">{filename}</span>
+          {showSecondaryFilename ? (
+            <>
+              <span className="text-slate-700">{filename}</span>
+              <span className="mx-1">·</span>
+            </>
           ) : null}
-          {doc.description ? <span className="mx-1">·</span> : null}
           {doc.mime_type} · {formatBytes(doc.size_bytes)} · subido{" "}
           {formatDateTimeAr(doc.uploaded_at)}
         </div>
