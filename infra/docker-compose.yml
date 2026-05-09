@@ -35,6 +35,9 @@ services:
     env_file: .env
     volumes:
       - ../apps/api:/app
+      # Named volume on /app/.venv shields the image-built virtualenv from
+      # the bind mount above (which would otherwise hide it).
+      - api_venv:/app/.venv
     ports:
       - "8000:8000"
     depends_on:
@@ -51,6 +54,7 @@ services:
     env_file: .env
     volumes:
       - ../apps/api:/app
+      - api_venv:/app/.venv
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,6 +69,7 @@ services:
     env_file: .env
     volumes:
       - ../apps/api:/app
+      - api_venv:/app/.venv
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,3 +78,4 @@ services:
 
 volumes:
   postgres_data:
+  api_venv:
