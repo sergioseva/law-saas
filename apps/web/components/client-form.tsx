@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { Button } from "./ui/button";
-import { DateInputAr } from "./ui/date-input-ar";
+import { DatePicker } from "./ui/date-picker";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
@@ -120,7 +120,7 @@ export function ClientForm({
             name="birth_date"
             control={control}
             render={({ field }) => (
-              <DateInputAr
+              <DatePicker
                 id="birth_date"
                 value={field.value}
                 onChange={field.onChange}
@@ -157,7 +157,7 @@ export function ClientForm({
             name="first_visit_date"
             control={control}
             render={({ field }) => (
-              <DateInputAr
+              <DatePicker
                 id="first_visit_date"
                 value={field.value}
                 onChange={field.onChange}

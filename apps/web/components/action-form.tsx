@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { Button } from "./ui/button";
-import { DateInputAr } from "./ui/date-input-ar";
+import { DatePicker } from "./ui/date-picker";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { FieldError } from "./ui/field-error";
@@ -78,7 +78,7 @@ export function ActionForm({ onSubmit, isSubmitting }: ActionFormProps) {
             name="action_date"
             control={control}
             render={({ field }) => (
-              <DateInputAr
+              <DatePicker
                 id="action_date"
                 value={field.value}
                 onChange={field.onChange}
@@ -93,7 +93,7 @@ export function ActionForm({ onSubmit, isSubmitting }: ActionFormProps) {
             name="next_action_date"
             control={control}
             render={({ field }) => (
-              <DateInputAr
+              <DatePicker
                 id="next_action_date"
                 value={field.value}
                 onChange={field.onChange}
