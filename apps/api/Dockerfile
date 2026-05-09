@@ -13,15 +13,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.4.18 /uv /usr/local/bin/uv
+# Install uv. 0.5.x handles PEP 735 [dependency-groups] correctly — earlier
+# 0.4 builds skipped them silently with `uv sync --no-install-project`, which
+# meant pytest/ruff/mypy weren't actually present in the venv.
+COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
 # ---------- deps ----------
 FROM base AS deps
 COPY pyproject.toml ./
-RUN uv sync --no-install-project
+# --all-groups: install main + every dependency group (i.e., dev too).
+RUN uv sync --no-install-project --all-groups
 
 # ---------- dev ----------
 FROM deps AS dev
