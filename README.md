@@ -91,6 +91,16 @@ Storage backend is auto-selected: if `R2_ACCESS_KEY_ID` is set, uploads go to Cl
 
 A **daily Celery Beat task** (08:00 Argentina time) scans every firm for actions due in the next 3 days and emails the firm's admins + abogados a digest. In dev the email backend prints to the api container's stdout — `docker compose logs -f api` to see it.
 
+### Production hardening (Phase 5, partial)
+
+- **Audit log.** Every signup/login (success/failure)/logout, client create/delete, action create/complete, document upload/delete, and export trigger writes an `audit_auditlogentry` row (tenant FK, user FK, action, resource, metadata, IP, user_agent, timestamp). Convention-only append-only — query via Django shell or admin.
+- **Rate limits.** `/api/auth/signup` 3/h per IP, `/api/auth/login` 5/5min per IP, `/api/exports/*` 10/h per firm. Backed by a dedicated Redis DB (3). Returns 429 with a Spanish detail.
+- **Non-superuser DB role.** Migration `tenants/0002_app_role.py` creates `lawsaas_app` (NOLOGIN, NOSUPERUSER, NOBYPASSRLS) with DML privileges on `public.*`. To activate RLS in production, either:
+  1. Set `POSTGRES_USER=lawsaas_app` in `.env.prod` and run migrations as a separate superuser; **or**
+  2. After migrating, run `ALTER USER lawsaas NOSUPERUSER` so the runtime user can no longer bypass RLS.
+
+  `tests/test_rls_enforcement.py` proves RLS works correctly under the role: zero rows leak across tenants, cross-tenant `UPDATE` is rejected by the policy's `WITH CHECK` clause.
+
 Roles: `admin` (full access), `abogado` (read+write), `secretario` (read-only). Permission classes live in `apps/api/tenants/permissions.py`.
 
 ### Frontend (Phase 3, wired up)
