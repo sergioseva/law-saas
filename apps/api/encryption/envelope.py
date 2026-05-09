@@ -11,10 +11,41 @@ without re-encrypting any data — that is the point of envelope encryption.
 from __future__ import annotations
 
 import base64
+import datetime as _dt
 import json
 import os
+from typing import Any
 
 from cryptography.fernet import Fernet
+
+
+class _PayloadEncoder(json.JSONEncoder):
+    """
+    JSON encoder for payload dicts. Handles types that DRF likes to produce
+    but stdlib json doesn't know:
+      - datetime.date / datetime.datetime / datetime.time → ISO 8601 string
+      - decimal.Decimal → str (preserves precision)
+      - UUID → str
+      - bytes (rare here) → base64
+    """
+
+    def default(self, o: Any) -> Any:  # type: ignore[override]
+        if isinstance(o, _dt.datetime):
+            return o.isoformat()
+        if isinstance(o, _dt.date):
+            return o.isoformat()
+        if isinstance(o, _dt.time):
+            return o.isoformat()
+        from decimal import Decimal
+        from uuid import UUID
+
+        if isinstance(o, Decimal):
+            return str(o)
+        if isinstance(o, UUID):
+            return str(o)
+        if isinstance(o, bytes):
+            return base64.b64encode(o).decode("ascii")
+        return super().default(o)
 
 
 def _master() -> Fernet:
@@ -47,7 +78,7 @@ def unwrap_dek(wrapped: str) -> bytes:
 
 
 def encrypt_payload(dek: bytes, data: dict) -> str:
-    raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    raw = json.dumps(data, ensure_ascii=False, cls=_PayloadEncoder).encode("utf-8")
     return Fernet(dek).encrypt(raw).decode("ascii")
 
 

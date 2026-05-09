@@ -44,3 +44,25 @@ def test_different_deks_dont_decrypt() -> None:
 
     with pytest.raises(InvalidToken):
         decrypt_payload(b, token)
+
+
+def test_payload_encodes_dates_and_datetimes() -> None:
+    """Regression: DRF DateField produces datetime.date; json.dumps refuses it."""
+    import datetime as dt
+    from decimal import Decimal
+    from uuid import UUID
+
+    dek = generate_dek()
+    payload = {
+        "birth_date": dt.date(1990, 5, 15),
+        "created_at": dt.datetime(2026, 4, 21, 10, 30, 0),
+        "amount": Decimal("123.45"),
+        "ref": UUID("12345678-1234-5678-1234-567812345678"),
+    }
+    token = encrypt_payload(dek, payload)
+    out = decrypt_payload(dek, token)
+
+    assert out["birth_date"] == "1990-05-15"
+    assert out["created_at"].startswith("2026-04-21T10:30:00")
+    assert out["amount"] == "123.45"
+    assert out["ref"] == "12345678-1234-5678-1234-567812345678"
