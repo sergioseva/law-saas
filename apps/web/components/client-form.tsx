@@ -1,10 +1,11 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { Button } from "./ui/button";
+import { DateInputAr } from "./ui/date-input-ar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
@@ -55,6 +56,7 @@ export function ClientForm({
 }: ClientFormProps) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({
@@ -114,7 +116,18 @@ export function ClientForm({
 
         <div>
           <Label htmlFor="birth_date">Fecha de nacimiento</Label>
-          <Input id="birth_date" type="date" {...register("birth_date")} />
+          <Controller
+            name="birth_date"
+            control={control}
+            render={({ field }) => (
+              <DateInputAr
+                id="birth_date"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </div>
 
         <div>
@@ -140,7 +153,18 @@ export function ClientForm({
 
         <div>
           <Label htmlFor="first_visit_date">Primera visita</Label>
-          <Input id="first_visit_date" type="date" {...register("first_visit_date")} />
+          <Controller
+            name="first_visit_date"
+            control={control}
+            render={({ field }) => (
+              <DateInputAr
+                id="first_visit_date"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </div>
 
         <div>

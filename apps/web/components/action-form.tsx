@@ -1,10 +1,11 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { Button } from "./ui/button";
+import { DateInputAr } from "./ui/date-input-ar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { FieldError } from "./ui/field-error";
@@ -31,6 +32,7 @@ export interface ActionFormProps {
 export function ActionForm({ onSubmit, isSubmitting }: ActionFormProps) {
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -72,11 +74,33 @@ export function ActionForm({ onSubmit, isSubmitting }: ActionFormProps) {
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <Label htmlFor="action_date">Fecha</Label>
-          <Input id="action_date" type="date" {...register("action_date")} />
+          <Controller
+            name="action_date"
+            control={control}
+            render={({ field }) => (
+              <DateInputAr
+                id="action_date"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </div>
         <div>
           <Label htmlFor="next_action_date">Próxima fecha</Label>
-          <Input id="next_action_date" type="date" {...register("next_action_date")} />
+          <Controller
+            name="next_action_date"
+            control={control}
+            render={({ field }) => (
+              <DateInputAr
+                id="next_action_date"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </div>
         <div>
           <Label htmlFor="next_step">Próximo paso</Label>
