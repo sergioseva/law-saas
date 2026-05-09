@@ -42,6 +42,13 @@ def firm_b(db):
     )
 
 
+@pytest.fixture(autouse=True)
+def _disable_ratelimit(settings):
+    """Tests bombard auth/exports endpoints; turn off rate limiting by default.
+    Specific tests can re-enable with `settings.RATELIMIT_ENABLE = True`."""
+    settings.RATELIMIT_ENABLE = False
+
+
 @pytest.fixture
 def admin_user(db):
     from tenants.models import User

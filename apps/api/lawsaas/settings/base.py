@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "crm",
     "encryption",
     "exports",
+    "audit",
 ]
 
 MIDDLEWARE = [
@@ -140,6 +141,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "EXCEPTION_HANDLER": "lawsaas.exception_handlers.custom_exception_handler",
 }
 
 SPECTACULAR_SETTINGS = {
@@ -163,6 +165,19 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
+
+# ---------------------------------------------------------------------------
+# Cache (also backs django-ratelimit). Redis DB 3 — keep separate from Celery.
+# ---------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("CACHE_REDIS_URL", default="redis://redis:6379/3"),
+    }
+}
+
+# django-ratelimit: bypass for tests; raise Ratelimited (DRF turns into 429).
+RATELIMIT_ENABLE = True
 
 # ---------------------------------------------------------------------------
 # R2 (S3-compatible) for documents

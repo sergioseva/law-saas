@@ -16,12 +16,20 @@ from urllib.parse import quote
 
 from celery.result import AsyncResult
 from django.http import StreamingHttpResponse
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+
+def _firm_rate_key(group, request):
+    firm = getattr(request, "firm", None)
+    return str(firm.id) if firm is not None else (request.META.get("REMOTE_ADDR") or "anon")
+
+from audit.services import log as audit_log
 from storage import FileNotFoundInStorage, get_storage
 from tenants.permissions import HasFirm, IsRead
 
@@ -32,20 +40,36 @@ class _Base(APIView):
     permission_classes = [IsAuthenticated, HasFirm, IsRead]
 
 
+@method_decorator(
+    ratelimit(key=_firm_rate_key, rate="10/h", method="POST", block=True), name="post"
+)
 class ExcelExportView(_Base):
     def post(self, request: Request) -> Response:
         firm = request.firm  # type: ignore[attr-defined]
         result = build_excel_export.delay(str(firm.id))
+        audit_log(
+            request,
+            "export.start",
+            metadata={"format": "excel", "task_id": result.id},
+        )
         return Response(
             {"task_id": result.id, "status": "queued"},
             status=status.HTTP_202_ACCEPTED,
         )
 
 
+@method_decorator(
+    ratelimit(key=_firm_rate_key, rate="10/h", method="POST", block=True), name="post"
+)
 class PdfExportView(_Base):
     def post(self, request: Request) -> Response:
         firm = request.firm  # type: ignore[attr-defined]
         result = build_pdf_export.delay(str(firm.id))
+        audit_log(
+            request,
+            "export.start",
+            metadata={"format": "pdf", "task_id": result.id},
+        )
         return Response(
             {"task_id": result.id, "status": "queued"},
             status=status.HTTP_202_ACCEPTED,

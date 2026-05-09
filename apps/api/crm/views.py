@@ -24,6 +24,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from audit.services import log as audit_log
 from encryption.envelope import decrypt_text
 from tenants.permissions import HasFirm, IsDelete, IsRead, IsWrite
 
@@ -99,10 +100,18 @@ class ClientViewSet(_TenantScopedViewSet):
         ser = ClientWriteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         client = services.create_client(firm=self.firm, data=dict(ser.validated_data))
+        audit_log(request, "client.create", resource_type="client", resource_id=client.pk)
         return Response(
             services.read_client(firm=self.firm, client=client),
             status=status.HTTP_201_CREATED,
         )
+
+    def destroy(self, request, *args, **kwargs):
+        client = self.get_object()
+        client_id = client.pk
+        client.delete()
+        audit_log(request, "client.delete", resource_type="client", resource_id=client_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         client = self.get_object()
@@ -165,6 +174,13 @@ class ActionViewSet(_TenantScopedViewSet):
         action = services.create_action(
             firm=self.firm, client=client, data=dict(ser.validated_data)
         )
+        audit_log(
+            request,
+            "action.create",
+            resource_type="action",
+            resource_id=action.pk,
+            metadata={"client_id": client.pk},
+        )
         return Response(
             services.read_action(firm=self.firm, action=action),
             status=status.HTTP_201_CREATED,
@@ -192,6 +208,12 @@ class ActionViewSet(_TenantScopedViewSet):
     def mark_completed(self, request: Request, pk=None) -> Response:
         action = self.get_object()
         updated = services.update_action(firm=self.firm, action=action, data={"completed": True})
+        audit_log(
+            request,
+            "action.complete",
+            resource_type="action",
+            resource_id=updated.pk,
+        )
         return Response(services.read_action(firm=self.firm, action=updated))
 
 
@@ -276,6 +298,17 @@ class DocumentViewSet(_TenantScopedViewSet):
         except ValueError as exc:
             return Response({"file": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        audit_log(
+            request,
+            "document.upload",
+            resource_type="document",
+            resource_id=doc.pk,
+            metadata={
+                "client_id": client.pk,
+                "size_bytes": doc.size_bytes,
+                "mime_type": doc.mime_type,
+            },
+        )
         return Response(
             services.read_document(firm=self.firm, document=doc),
             status=status.HTTP_201_CREATED,
@@ -283,7 +316,14 @@ class DocumentViewSet(_TenantScopedViewSet):
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         doc = self.get_object()
+        doc_id = doc.pk
         services.delete_document(firm=self.firm, document=doc)
+        audit_log(
+            request,
+            "document.delete",
+            resource_type="document",
+            resource_id=doc_id,
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="download")

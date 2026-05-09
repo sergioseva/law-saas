@@ -29,6 +29,8 @@ CSRF_COOKIE_SECURE = False
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# Tests opt out of rate limiting via override_settings; default stays on.
+
 # Loud logging in dev
 LOGGING = {
     "version": 1,
