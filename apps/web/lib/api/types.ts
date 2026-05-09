@@ -112,6 +112,8 @@ export interface ActionWriteInput {
 export interface DocumentSummary {
   id: number;
   client: number;
+  original_name: string | null;
+  description: string | null;
   stored_key: string;
   mime_type: string;
   size_bytes: number;

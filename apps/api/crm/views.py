@@ -208,10 +208,24 @@ class DocumentViewSet(_TenantScopedViewSet):
 
     def list(self, request: Request, *args, **kwargs) -> Response:
         page = self.paginate_queryset(self.get_queryset())
-        ser = DocumentSummarySerializer(page or self.get_queryset(), many=True)
+        rows = list(page) if page is not None else list(self.get_queryset())
+        firm_dek = self.firm.dek
+        rendered = [
+            {
+                "id": doc.id,
+                "client": doc.client_id,
+                "original_name": decrypt_text(firm_dek, doc.original_name_encrypted),
+                "description": decrypt_text(firm_dek, doc.notes_encrypted),
+                "mime_type": doc.mime_type,
+                "size_bytes": doc.size_bytes,
+                "stored_key": doc.stored_key,
+                "uploaded_at": doc.uploaded_at.isoformat(),
+            }
+            for doc in rows
+        ]
         if page is not None:
-            return self.get_paginated_response(ser.data)
-        return Response(ser.data)
+            return self.get_paginated_response(rendered)
+        return Response(rendered)
 
     def retrieve(self, request: Request, *args, **kwargs) -> Response:
         doc = self.get_object()
@@ -249,7 +263,7 @@ class DocumentViewSet(_TenantScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        notes = request.data.get("notes") or None
+        description = request.data.get("description") or None
         try:
             doc = services.upload_document(
                 firm=self.firm,
@@ -257,7 +271,7 @@ class DocumentViewSet(_TenantScopedViewSet):
                 file_obj=upload,
                 original_name=upload.name,
                 mime_type=upload.content_type or "application/octet-stream",
-                notes=notes if isinstance(notes, str) else None,
+                description=description if isinstance(description, str) else None,
             )
         except ValueError as exc:
             return Response({"file": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

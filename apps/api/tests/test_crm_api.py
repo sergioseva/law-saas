@@ -339,16 +339,24 @@ def test_document_upload(
 
     response = api.post(
         "/api/documents",
-        {"client": client.pk, "file": upload, "notes": "Doc importante"},
+        {"client": client.pk, "file": upload, "description": "Doc importante"},
         format="multipart",
     )
     assert response.status_code == 201, response.json()
     body = response.json()
     assert body["original_name"] == "denuncia.pdf"
+    assert body["description"] == "Doc importante"
     assert body["mime_type"] == "application/pdf"
     assert body["size_bytes"] == len(pdf_bytes)
     assert body["stored_key"].startswith(f"firm-{firm_a.id}/{client.pk}/")
     assert body["stored_key"].endswith(".pdf")
+
+    # Same description shows up in the list endpoint
+    list_response = api.get(f"/api/documents?client={client.pk}")
+    assert list_response.status_code == 200
+    rows = list_response.json().get("results", list_response.json())
+    assert rows[0]["description"] == "Doc importante"
+    assert rows[0]["original_name"] == "denuncia.pdf"
 
 
 @override_settings(PUBLIC_BASE_DOMAIN="lawsaas.app")

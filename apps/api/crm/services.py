@@ -237,14 +237,17 @@ def upload_document(
     file_obj: BinaryIO,
     original_name: str,
     mime_type: str,
-    notes: str | None = None,
+    description: str | None = None,
 ) -> Document:
     """
     Persist `file_obj` to the configured storage backend and create a row.
 
     The stored key is opaque (firm-namespaced + random) — the original
-    filename is encrypted with the firm DEK and stored in the row. Callers
-    that want the plaintext name go through read_document().
+    filename and the user-provided `description` are both encrypted with the
+    firm DEK. Callers that want plaintext go through read_document().
+
+    NB: the underlying column is `notes_encrypted` (kept for migration
+    stability); the API surface uses `description`.
     """
     from storage import get_storage
 
@@ -267,7 +270,7 @@ def upload_document(
         client=client,
         original_name_encrypted=encrypt_text(firm.dek, original_name) or "",
         stored_key=stored_key,
-        notes_encrypted=encrypt_text(firm.dek, notes),
+        notes_encrypted=encrypt_text(firm.dek, description),
         mime_type=mime_type,
         size_bytes=size_bytes,
     )
@@ -304,7 +307,7 @@ def read_document(*, firm: Firm, document: Document) -> dict:
         "id": document.pk,
         "client_id": document.client_id,
         "original_name": decrypt_text(firm.dek, document.original_name_encrypted),
-        "notes": decrypt_text(firm.dek, document.notes_encrypted),
+        "description": decrypt_text(firm.dek, document.notes_encrypted),
         "stored_key": document.stored_key,
         "mime_type": document.mime_type,
         "size_bytes": document.size_bytes,

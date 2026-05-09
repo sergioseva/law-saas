@@ -7,6 +7,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "./ui/card";
 import { FieldError } from "./ui/field-error";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { cn, formatDateAr, formatDateTimeAr } from "../lib/utils";
 import type { ActionSummary, DocumentSummary, Role } from "../lib/api/types";
 import {
@@ -222,12 +224,14 @@ const MAX_BYTES = 16 * 1024 * 1024;
 
 function DocumentUploader({ clientId }: { clientId: number }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<File | null>(null);
+  const [description, setDescription] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const upload = useUploadDocument();
 
-  function handleFiles(files: FileList | null | undefined) {
+  function pickFile(files: FileList | null | undefined) {
     if (!files || files.length === 0) return;
     const file = files[0];
     setError(null);
@@ -241,20 +245,30 @@ function DocumentUploader({ clientId }: { clientId: number }) {
       setError(`Archivo demasiado grande (máx. ${MAX_BYTES / (1024 * 1024)} MB).`);
       return;
     }
+    setPending(file);
+  }
 
+  function clearPending() {
+    setPending(null);
+    setDescription("");
+    setError(null);
+    setProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleSubmit() {
+    if (!pending) return;
     setProgress(0);
     upload.mutate(
       {
         client: clientId,
-        file,
+        file: pending,
+        description: description.trim() || undefined,
         onProgress: (p) =>
           setProgress(p.total > 0 ? Math.round((p.loaded / p.total) * 100) : null),
       },
       {
-        onSuccess: () => {
-          setProgress(null);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-        },
+        onSuccess: () => clearPending(),
         onError: (err) => {
           setProgress(null);
           if (err instanceof HttpError && err.errors) {
@@ -275,48 +289,83 @@ function DocumentUploader({ clientId }: { clientId: number }) {
       <CardHeader>
         <CardTitle>Subir documento</CardTitle>
       </CardHeader>
-      <CardBody>
-        <label
-          htmlFor={`upload-${clientId}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            handleFiles(e.dataTransfer.files);
-          }}
-          className={cn(
-            "flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors",
-            dragOver
-              ? "border-slate-700 bg-slate-50"
-              : "border-slate-300 hover:border-slate-400",
-            upload.isPending && "pointer-events-none opacity-60",
-          )}
-        >
-          <input
-            ref={fileInputRef}
-            id={`upload-${clientId}`}
-            type="file"
-            className="sr-only"
-            accept={ALLOWED_EXTS.map((e) => `.${e}`).join(",")}
-            disabled={upload.isPending}
-            onChange={(e) => handleFiles(e.target.files)}
-          />
-          <p className="text-sm text-slate-700">
-            {upload.isPending
-              ? `Subiendo…${progress !== null ? ` ${progress}%` : ""}`
-              : "Arrastrá un archivo o hacé clic para elegir uno"}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            PDF, imágenes, DOC, TXT — hasta {MAX_BYTES / (1024 * 1024)} MB
-          </p>
-        </label>
+      <CardBody className="space-y-3">
+        {pending ? (
+          <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-slate-900">
+                {pending.name}
+              </div>
+              <div className="text-xs text-slate-500">
+                {(pending.size / 1024).toFixed(1)} KB
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearPending}
+              disabled={upload.isPending}
+            >
+              Quitar
+            </Button>
+          </div>
+        ) : (
+          <label
+            htmlFor={`upload-${clientId}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              pickFile(e.dataTransfer.files);
+            }}
+            className={cn(
+              "flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors",
+              dragOver
+                ? "border-slate-700 bg-slate-50"
+                : "border-slate-300 hover:border-slate-400",
+            )}
+          >
+            <input
+              ref={fileInputRef}
+              id={`upload-${clientId}`}
+              type="file"
+              className="sr-only"
+              accept={ALLOWED_EXTS.map((e) => `.${e}`).join(",")}
+              onChange={(e) => pickFile(e.target.files)}
+            />
+            <p className="text-sm text-slate-700">
+              Arrastrá un archivo o hacé clic para elegir uno
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              PDF, imágenes, DOC, TXT — hasta {MAX_BYTES / (1024 * 1024)} MB
+            </p>
+          </label>
+        )}
+
+        {pending ? (
+          <div>
+            <Label htmlFor={`description-${clientId}`}>Descripción</Label>
+            <Input
+              id={`description-${clientId}`}
+              type="text"
+              placeholder="Ej: Denuncia administrativa, Historia clínica, Recibos…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={200}
+              disabled={upload.isPending}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Recomendado para identificar el documento más tarde.
+            </p>
+          </div>
+        ) : null}
 
         {progress !== null ? (
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full bg-slate-900 transition-[width]"
               style={{ width: `${progress}%` }}
@@ -325,6 +374,16 @@ function DocumentUploader({ clientId }: { clientId: number }) {
         ) : null}
 
         <FieldError message={error ?? undefined} />
+
+        {pending ? (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleSubmit} disabled={upload.isPending}>
+              {upload.isPending
+                ? `Subiendo…${progress !== null ? ` ${progress}%` : ""}`
+                : "Subir"}
+            </Button>
+          </div>
+        ) : null}
       </CardBody>
     </Card>
   );
@@ -344,6 +403,9 @@ function DocumentRow({
     remove.mutate(doc.id);
   }
 
+  const displayName = doc.description || doc.original_name || `Documento #${doc.id}`;
+  const filename = doc.original_name ?? doc.stored_key.split("/").pop() ?? doc.stored_key;
+
   return (
     <li className="flex items-center justify-between px-5 py-3">
       <div className="min-w-0 flex-1">
@@ -353,9 +415,13 @@ function DocumentRow({
           rel="noopener noreferrer"
           className="block truncate text-sm font-medium text-slate-900 hover:underline"
         >
-          {doc.stored_key.split("/").pop() ?? doc.stored_key}
+          {displayName}
         </a>
-        <div className="text-xs text-slate-500">
+        <div className="truncate text-xs text-slate-500">
+          {doc.description ? (
+            <span className="text-slate-700">{filename}</span>
+          ) : null}
+          {doc.description ? <span className="mx-1">·</span> : null}
           {doc.mime_type} · {formatBytes(doc.size_bytes)} · subido{" "}
           {formatDateTimeAr(doc.uploaded_at)}
         </div>

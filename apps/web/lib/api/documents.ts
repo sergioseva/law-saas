@@ -23,7 +23,7 @@ export interface UploadProgress {
 export interface UploadDocumentInput {
   client: number;
   file: File;
-  notes?: string;
+  description?: string;
   onProgress?: (progress: UploadProgress) => void;
   signal?: AbortSignal;
 }
@@ -40,7 +40,7 @@ export async function uploadDocument(
   const form = new FormData();
   form.append("client", String(input.client));
   form.append("file", input.file);
-  if (input.notes) form.append("notes", input.notes);
+  if (input.description) form.append("description", input.description);
 
   const csrf = readCookie("csrftoken");
 
