@@ -78,9 +78,18 @@ All require a firm subdomain + active session.
 | POST   | `/api/actions` | Body must include `client` (id). |
 | POST   | `/api/actions/<id>/complete` | Convenience: mark as completed. |
 | GET/PATCH/DELETE | `/api/actions/<id>` | Standard CRUD. |
-| POST   | `/api/documents` | Metadata-only in Phase 2; bytes go via R2 in Phase 4. |
+| POST   | `/api/documents` | **Multipart upload** — body: `client`, `file`, optional `notes`. ≤ 16 MB. |
 | GET    | `/api/documents?client=` | Paginated summary. |
-| GET/DELETE | `/api/documents/<id>` | (PUT/PATCH return 405 — replace by delete + re-upload.) |
+| GET    | `/api/documents/<id>` | Decrypted detail (with original_name, notes). |
+| GET    | `/api/documents/<id>/download` | Streams the file with original filename. |
+| DELETE | `/api/documents/<id>` | Removes file + row (admin only). PUT/PATCH 405. |
+| POST   | `/api/exports/excel` \| `/api/exports/pdf` | Enqueues a Celery task; returns `task_id`. |
+| GET    | `/api/exports/<task_id>` | Polls status; returns `download_url` when ready. |
+| GET    | `/api/exports/<task_id>/download` | Streams the produced file. |
+
+Storage backend is auto-selected: if `R2_ACCESS_KEY_ID` is set, uploads go to Cloudflare R2; otherwise `MEDIA_ROOT` (a Docker volume) on disk. Either way the API contract is the same.
+
+A **daily Celery Beat task** (08:00 Argentina time) scans every firm for actions due in the next 3 days and emails the firm's admins + abogados a digest. In dev the email backend prints to the api container's stdout — `docker compose logs -f api` to see it.
 
 Roles: `admin` (full access), `abogado` (read+write), `secretario` (read-only). Permission classes live in `apps/api/tenants/permissions.py`.
 

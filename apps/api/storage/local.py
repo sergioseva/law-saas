@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import BinaryIO
 
@@ -71,7 +70,3 @@ def list_keys() -> list[str]:
         for p in root.rglob("*")
         if p.is_file()
     ]
-
-
-# Avoid an unused-import warning for `os`.
-del os

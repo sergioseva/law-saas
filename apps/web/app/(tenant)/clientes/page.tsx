@@ -9,6 +9,7 @@ import { Card, CardBody } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Select } from "../../../components/ui/select";
 import { useClients } from "../../../lib/hooks/use-clients";
+import { useExport } from "../../../lib/hooks/use-export";
 import { useMe } from "../../../lib/hooks/use-me";
 import { formatDateAr } from "../../../lib/utils";
 
@@ -38,11 +39,14 @@ export default function ClientesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
-        {canWrite ? (
-          <Link href="/clientes/nuevo">
-            <Button>Nuevo cliente</Button>
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <ExportButtons />
+          {canWrite ? (
+            <Link href="/clientes/nuevo">
+              <Button>Nuevo cliente</Button>
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -109,6 +113,48 @@ export default function ClientesPage() {
           Mostrando {data.results.length} de {data.count}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function ExportButtons() {
+  const exporter = useExport();
+
+  if (exporter.phase === "ready" && exporter.downloadUrl) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-slate-600">
+        <span>Listo:</span>
+        <a
+          href={exporter.downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Descargar
+        </a>
+        <Button variant="ghost" size="sm" onClick={exporter.reset}>
+          ✕
+        </Button>
+      </div>
+    );
+  }
+
+  if (exporter.isPending) {
+    return (
+      <Button variant="secondary" disabled>
+        Generando…
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex gap-1">
+      <Button variant="secondary" onClick={() => exporter.start("excel")}>
+        Excel
+      </Button>
+      <Button variant="secondary" onClick={() => exporter.start("pdf")}>
+        PDF
+      </Button>
     </div>
   );
 }
