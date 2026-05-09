@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type DocumentListParams,
+  type UploadDocumentInput,
   deleteDocument,
   listDocuments,
+  uploadDocument,
 } from "../api/documents";
 
 export function useDocuments(params: DocumentListParams = {}) {
@@ -13,6 +15,14 @@ export function useDocuments(params: DocumentListParams = {}) {
     queryKey: ["documents", params],
     queryFn: () => listDocuments(params),
     enabled: params.client === undefined || Number.isFinite(params.client),
+  });
+}
+
+export function useUploadDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UploadDocumentInput) => uploadDocument(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents"] }),
   });
 }
 

@@ -117,7 +117,14 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media (profile photos etc.) goes to R2 in prod; local disk in dev.
+# Media (uploads). LocalStorage uses MEDIA_ROOT; R2Storage ignores it.
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
+# File upload limits — match the legacy app's 16 MB cap for documents.
+MAX_DOCUMENT_BYTES = 16 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # REST framework

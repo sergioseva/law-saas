@@ -314,47 +314,113 @@ def test_action_list_filter_by_client(
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def tmp_media(tmp_path, settings):
+    """Use a per-test MEDIA_ROOT to keep file uploads isolated."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+    from storage.factory import reset_storage_cache
+
+    reset_storage_cache()
+    yield settings.MEDIA_ROOT
+    reset_storage_cache()
+
+
 @override_settings(PUBLIC_BASE_DOMAIN="lawsaas.app")
 @pytest.mark.django_db
-def test_document_create_metadata(
-    firm_a, admin_user, admin_membership, acme_data
+def test_document_upload(
+    firm_a, admin_user, admin_membership, acme_data, tmp_media
 ) -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
     client = create_client(firm=firm_a, data=acme_data)
     api = _client_for(host="acme.lawsaas.app", user=admin_user)
+    pdf_bytes = b"%PDF-1.4 fake pdf content for test"
+    upload = SimpleUploadedFile("denuncia.pdf", pdf_bytes, content_type="application/pdf")
+
     response = api.post(
         "/api/documents",
-        {
-            "client": client.pk,
-            "original_name": "denuncia.pdf",
-            "stored_key": f"firm-{firm_a.id}/{client.pk}/denuncia.pdf",
-            "mime_type": "application/pdf",
-            "size_bytes": 1234,
-        },
-        format="json",
+        {"client": client.pk, "file": upload, "notes": "Doc importante"},
+        format="multipart",
     )
     assert response.status_code == 201, response.json()
     body = response.json()
     assert body["original_name"] == "denuncia.pdf"
     assert body["mime_type"] == "application/pdf"
+    assert body["size_bytes"] == len(pdf_bytes)
+    assert body["stored_key"].startswith(f"firm-{firm_a.id}/{client.pk}/")
+    assert body["stored_key"].endswith(".pdf")
 
 
 @override_settings(PUBLIC_BASE_DOMAIN="lawsaas.app")
 @pytest.mark.django_db
 def test_document_rejects_disallowed_extension(
-    firm_a, admin_user, admin_membership, acme_data
+    firm_a, admin_user, admin_membership, acme_data, tmp_media
 ) -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
     client = create_client(firm=firm_a, data=acme_data)
     api = _client_for(host="acme.lawsaas.app", user=admin_user)
+    upload = SimpleUploadedFile("exploit.exe", b"MZ", content_type="application/octet-stream")
+
     response = api.post(
         "/api/documents",
-        {
-            "client": client.pk,
-            "original_name": "exploit.exe",
-            "stored_key": "x/y/z.exe",
-            "mime_type": "application/octet-stream",
-            "size_bytes": 100,
-        },
-        format="json",
+        {"client": client.pk, "file": upload},
+        format="multipart",
     )
     assert response.status_code == 400
-    assert "original_name" in response.json()
+    assert "file" in response.json()
+
+
+@override_settings(PUBLIC_BASE_DOMAIN="lawsaas.app")
+@pytest.mark.django_db
+def test_document_download_roundtrip(
+    firm_a, admin_user, admin_membership, acme_data, tmp_media
+) -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    client = create_client(firm=firm_a, data=acme_data)
+    api = _client_for(host="acme.lawsaas.app", user=admin_user)
+    pdf_bytes = b"%PDF-1.4\n" + b"x" * 1024
+    upload = SimpleUploadedFile("informe.pdf", pdf_bytes, content_type="application/pdf")
+    create = api.post(
+        "/api/documents",
+        {"client": client.pk, "file": upload},
+        format="multipart",
+    )
+    assert create.status_code == 201
+    doc_id = create.json()["id"]
+
+    download = api.get(f"/api/documents/{doc_id}/download")
+    assert download.status_code == 200
+    assert download["Content-Type"].startswith("application/pdf")
+    body = b"".join(download.streaming_content)
+    assert body == pdf_bytes
+    assert "informe.pdf" in download["Content-Disposition"]
+
+
+@override_settings(PUBLIC_BASE_DOMAIN="lawsaas.app")
+@pytest.mark.django_db
+def test_document_destroy_removes_file(
+    firm_a, admin_user, admin_membership, acme_data, tmp_media
+) -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from crm.models import Document
+    from storage import get_storage
+
+    client = create_client(firm=firm_a, data=acme_data)
+    api = _client_for(host="acme.lawsaas.app", user=admin_user)
+    upload = SimpleUploadedFile("foo.pdf", b"data", content_type="application/pdf")
+    create = api.post(
+        "/api/documents",
+        {"client": client.pk, "file": upload},
+        format="multipart",
+    )
+    doc_id = create.json()["id"]
+    stored_key = create.json()["stored_key"]
+    assert get_storage().exists(stored_key) is True
+
+    delete = api.delete(f"/api/documents/{doc_id}")
+    assert delete.status_code == 204
+    assert not Document.objects.filter(pk=doc_id).exists()
+    assert get_storage().exists(stored_key) is False

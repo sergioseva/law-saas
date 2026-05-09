@@ -15,8 +15,9 @@ Tenant safety:
 """
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, BinaryIO
 
 from django.db import transaction
 
@@ -229,18 +230,37 @@ def read_action(*, firm: Firm, action: Action) -> dict:
 
 
 @transaction.atomic
-def create_document(
+def upload_document(
     *,
     firm: Firm,
     client: Client,
+    file_obj: BinaryIO,
     original_name: str,
-    stored_key: str,
     mime_type: str,
-    size_bytes: int,
     notes: str | None = None,
 ) -> Document:
+    """
+    Persist `file_obj` to the configured storage backend and create a row.
+
+    The stored key is opaque (firm-namespaced + random) — the original
+    filename is encrypted with the firm DEK and stored in the row. Callers
+    that want the plaintext name go through read_document().
+    """
+    from storage import get_storage
+
+    from .constants import ALLOWED_DOCUMENT_EXTENSIONS
+
     if client.tenant_id != firm.id:
         raise PermissionError("Client does not belong to this firm.")
+
+    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if ext not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise ValueError(f"File type .{ext} is not allowed.")
+
+    stored_key = f"firm-{firm.id}/{client.id}/{uuid.uuid4().hex}.{ext}"
+
+    storage = get_storage()
+    size_bytes = storage.save(stored_key, file_obj, content_type=mime_type)
 
     return Document.objects.create(
         tenant=firm,
@@ -251,6 +271,29 @@ def create_document(
         mime_type=mime_type,
         size_bytes=size_bytes,
     )
+
+
+def open_document_stream(*, firm: Firm, document: Document) -> BinaryIO:
+    """Open a file handle on the stored bytes — caller must close it."""
+    from storage import get_storage
+
+    if document.tenant_id != firm.id:
+        raise PermissionError("Document does not belong to this firm.")
+    return get_storage().open(document.stored_key)
+
+
+@transaction.atomic
+def delete_document(*, firm: Firm, document: Document) -> None:
+    """Delete the file from storage AND remove the metadata row."""
+    from storage import get_storage
+
+    if document.tenant_id != firm.id:
+        raise PermissionError("Document does not belong to this firm.")
+    storage = get_storage()
+    try:
+        storage.delete(document.stored_key)
+    finally:
+        document.delete()
 
 
 def read_document(*, firm: Firm, document: Document) -> dict:
